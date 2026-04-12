@@ -1,7 +1,12 @@
 [project]
 name = "gesta"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Python library designed to handle administration for buisnesses."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "sqlalchemy>=2.0.49",
+]
+
+
+

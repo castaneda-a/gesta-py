@@ -10,8 +10,51 @@ Clases principales:
 7. Gesta           → clase principal que orquesta todo
 
 
-Person ──────────────────────────────┐
-                                     ▼
-Service ──────► Appointment ──────► Transaction ──────► Payment
-                    │
-                    └── fecha de cita (≠ fecha de registro)
+
+
+
+
+
+gesta/                          ← repo raíz
+├── gesta/                      ← paquete instalable
+│   ├── __init__.py             ← expone la API pública: from gesta import Gesta
+│   ├── gesta.py                ← clase principal, orquesta todo
+│   │
+│   ├── core/
+│   │   ├── __init__.py         ← expone: from gesta.core import Person, Service, ...
+│   │   ├── entities.py          define las clases del dominio del negocio
+│   │   ├── database.py          maneja la conexión a la base de datos
+│   │   ├── exceptions.py        jerarquia de errores
+│   │   └── validators.py        validan la info antes de escribir a la base de datos
+│   │
+│   ├── managers/
+│   │   ├── __init__.py         ← expone: from gesta.managers import AppointmentManager, ...
+│   │   ├── calendar.py
+│   │   ├── transactions.py
+│   │   └── reports.py
+│   │
+│   └── extensions/
+│       ├── __init__.py         ← vacío por ahora
+│       └── wellness.py
+│
+├── tests/                      ← pruebas unitarias (lo agregamos desde ahora)
+│   ├── __init__.py
+│   ├── test_entities.py
+│   ├── test_calendar.py
+│   └── test_transactions.py
+│
+├── .gitignore
+├── .python_version
+├── LICENSE
+├── main.py                     ← sandbox de pruebas durante desarrollo
+├── pyproject.toml
+└── README.md
+
+
+
+
+
+core:
+entities.pyDefine las clases del dominio del negocio.
+
+
