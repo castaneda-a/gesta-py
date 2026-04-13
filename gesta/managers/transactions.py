@@ -169,25 +169,23 @@ class TransactionManager:
         cost_amount: Decimal = None,
         notes: str = None,
     ) -> Transaction:
-        """
-        Registra una transacción a partir de una cita existente.
-
-        Si no se especifica amount, se calcula como
-        offering.price × número de clientes de la cita.
-        Si no se especifica cost_amount, se toma de offering.cost.
-        """
         appt = self._get_appointment_or_raise(appointment_id)
 
-        if appt.status != AppointmentStatus.SCHEDULED:
-            raise ValidationError(
-                f"Solo se pueden registrar transacciones de citas SCHEDULED. "
-                f"Estado actual: {appt.status.value!r}"
-            )
+        # Recargar para asegurar que las relaciones estén actualizadas
+        self.session.refresh(appt)
 
+        # Primero: ¿ya tiene transacción? (error más específico)
         if appt.transaction is not None:
             raise BusinessRuleError(
                 f"La cita {appointment_id!r} ya tiene una transacción "
                 f"asociada (id={appt.transaction.id!r})."
+            )
+
+        # Segundo: ¿está en estado correcto?
+        if appt.status != AppointmentStatus.SCHEDULED:
+            raise ValidationError(
+                f"Solo se pueden registrar transacciones de citas SCHEDULED. "
+                f"Estado actual: {appt.status.value!r}"
             )
 
         n            = len(appt.clients)
