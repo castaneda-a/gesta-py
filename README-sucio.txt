@@ -29,13 +29,14 @@ gesta/                          ← repo raíz
 │   │
 │   ├── managers/
 │   │   ├── __init__.py         ← expone: from gesta.managers import AppointmentManager, ...
-│   │   ├── calendar.py
-│   │   ├── transactions.py
-│   │   └── reports.py
+│   │   ├── calendar.py          gestor de citas
+│   │   ├── transactions.py      gestor de transacciones y pagos
+│   │   └── reports.py           gestor de reportes y resúmenes financieros
 │   │
 │   └── extensions/
 │       ├── __init__.py         ← vacío por ahora
-│       └── wellness.py
+│       └── wellness.py          extension para negocios de bienestar integral
+│        ...
 │
 ├── tests/                      ← pruebas unitarias (lo agregamos desde ahora)
 │   ├── __init__.py

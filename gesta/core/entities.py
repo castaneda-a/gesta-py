@@ -92,6 +92,12 @@ transaction_providers = Table(
     Column("person_id",      String, ForeignKey("persons.id"),      primary_key=True),
 )
 
+payment_transactions = Table(
+    "payment_transactions", Base.metadata,
+    Column("payment_id",     String, ForeignKey("payments.id"),     primary_key=True),
+    Column("transaction_id", String, ForeignKey("transactions.id"), primary_key=True),
+)
+
 
 # ---------------------------------------------------------------------------
 # Person
@@ -148,7 +154,8 @@ class Offering(Base):
     type        = Column(Enum(OfferingType), nullable=False)
     name        = Column(String(120), nullable=False)
     description = Column(Text, nullable=True)
-    price       = Column(Numeric(10, 2), nullable=False)
+    price       = Column(Numeric(10, 2), nullable=False)    # precio por persona/unidad
+    cost        = Column(Numeric(10, 2), nullable=True)   # costo para el negocio
     is_active   = Column(Boolean, default=True, nullable=False)
     created_at  = Column(DateTime, server_default=func.now(), nullable=False)
 
@@ -159,6 +166,16 @@ class Offering(Base):
     # Solo para Product
     stock           = Column(Numeric(10, 2), nullable=True)
     track_inventory = Column(Boolean, default=True, nullable=True)
+
+    @property
+    def margin(self) -> Decimal | None:
+        """
+        Margen por unidad/persona.
+        Retorna None si no se ha definido el costo.
+        """
+        if self.cost is None:
+            return None
+        return self.price - self.cost
 
     __mapper_args__ = {
         "polymorphic_on":       type,
@@ -210,7 +227,8 @@ class Transaction(Base):
     id             = Column(String, primary_key=True)
     appointment_id = Column(String, ForeignKey("appointments.id"), nullable=True)
     offering_id    = Column(String, ForeignKey("offerings.id"),    nullable=False)
-    amount         = Column(Numeric(10, 2), nullable=False)
+    amount         = Column(Numeric(10, 2), nullable=False)   # precio total cobrado
+    cost_amount    = Column(Numeric(10, 2), nullable=True)   # costo real en este momento
     status         = Column(Enum(TransactionStatus), default=TransactionStatus.PENDING, nullable=False)
     occurred_at    = Column(DateTime, nullable=False)
     created_at     = Column(DateTime, server_default=func.now(), nullable=False)
@@ -220,15 +238,50 @@ class Transaction(Base):
     offering    = relationship("Offering")
     clients     = relationship("Person", secondary=transaction_clients,   back_populates="transactions_as_client")
     providers   = relationship("Person", secondary=transaction_providers, back_populates="transactions_as_provider")
-    payments    = relationship("Payment", back_populates="transaction")
+    payments    = relationship("Payment", secondary=payment_transactions, back_populates="transactions")
 
     @property
     def amount_paid(self) -> Decimal:
-        return sum(p.amount for p in self.payments if not p.is_refund)
+        """
+        Suma la proporción de cada pago que corresponde a esta transacción.
+        Si un pago cubre N transacciones, cada una recibe amount/N.
+        """
+        total = Decimal("0")
+        for payment in self.payments:
+            if not payment.is_refund:
+                n = len(payment.transactions)
+                total += payment.amount / n if n > 0 else Decimal("0")
+        return total
 
     @property
     def balance(self) -> Decimal:
+        """Monto pendiente de cobro."""
         return self.amount - self.amount_paid
+
+    @property
+    def profit(self) -> Decimal | None:
+        """
+        Ganancia o pérdida de la transacción.
+        Retorna None si no se definió cost_amount.
+        """
+        if self.cost_amount is None:
+            return None
+        return self.amount - self.cost_amount
+
+    @property
+    def client_count(self) -> int:
+        """Número de clientes en esta transacción."""
+        return len(self.clients)
+
+    @property
+    def price_per_client(self) -> Decimal:
+        """
+        Precio promedio por cliente.
+        Útil para verificar consistencia con Offering.price.
+        """
+        if self.client_count == 0:
+            return Decimal("0")
+        return self.amount / self.client_count
 
     def __repr__(self):
         return f"<Transaction id={self.id} amount={self.amount} status={self.status}>"
@@ -242,7 +295,6 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id             = Column(String, primary_key=True)
-    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=False)
     amount         = Column(Numeric(10, 2), nullable=False)
     method         = Column(Enum(PaymentMethod), nullable=False)
     is_refund      = Column(Boolean, default=False, nullable=False)
@@ -250,7 +302,8 @@ class Payment(Base):
     created_at     = Column(DateTime, server_default=func.now(), nullable=False)
     notes          = Column(Text, nullable=True)
 
-    transaction = relationship("Transaction", back_populates="payments")
+    transactions = relationship("Transaction", secondary=payment_transactions, back_populates="payments")
+
 
     def __repr__(self):
         kind = "Refund" if self.is_refund else "Payment"
