@@ -130,6 +130,7 @@ class AppointmentManager:
             scheduled_at = scheduled_at,
             notes        = notes,
         )
+        appt.service = service
         appt.clients   = clients
         appt.providers = providers
 

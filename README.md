@@ -97,6 +97,101 @@ with studio.session() as s:
 | `Transaction` | A record that a service was delivered or a product was sold |
 | `Payment` | A money movement linked to one or more transactions |
 
+
+### Attributes of entities
+
+#### Person
+| persons | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `name` | String(120) | F |
+| `email` | String(120) | T | 
+| `phone` | String(30) | T |
+| `notes` | Text | T | 
+| `created_at` | DateTime | F |
+| `updated_at` | DateTime | F |
+
+#### Role
+| roles | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `name` | String(120) | F |
+| `description` | Text | T | 
+| `is_provider` | Boolean | F |
+| `is_recipient` | Boolean | F |
+
+#### Offering
+| offerings | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `type` | OfferingType | F |
+| `name` | String(120) | F |
+| `description` | Text | T | 
+| `price` | Numeric(10,2) | F |
+| `cost` | Numeric(10,2) | T |
+| `is_active` | Boolean | F |
+| `created_at` | DateTime | F |
+
+donde OfferingType:
+1. SERVICE
+2. PRODUCT
+
+
+#### Appointment
+| appointments | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `service_id` | String | foreign key |
+| `status` | AppointmentStatus | F |
+| `scheduled_at` | DateTime | F |
+| `registered_at` | DateTime | F |
+| `notes` | Text | T | 
+
+donde AppointmentStatus:
+1. SCHEDULED
+2. COMPLETED
+3. CANCELLED
+4. NO_SHOW
+
+
+#### Transaction
+| transactions | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `appointment_id` | String | foreign key |
+| `offering_id` | String | foreign key |
+| `amount` | Numeric(10,2) | F |
+| `cost_amount` | Numeric(10,2) | T |
+| `status` | TransactionStatus | F |
+| `occurred_at` | DateTime | F |
+| `created_at` | DateTime | F |
+| `notes` | Text | T | 
+
+donde TransactionStatus:
+1. PENDING
+2. PAID
+3. PARTIAL
+4. REFUNDED
+
+
+#### Payment
+| payments | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `amount` | Numeric(10,2) | F |
+| `method` | PaymentMethod | F |
+| `is_refund` | Boolean | F |
+| `paid_at` | DateTime | F |
+| `created_at` | DateTime | F |
+| `notes` | Text | T | 
+
+donde PaymentMethod:
+1. CASH
+2. CARD
+3. TRANSFER
+4. OTHER
+
+
 ### Transaction vs Appointment
 
 These are two distinct events in time:

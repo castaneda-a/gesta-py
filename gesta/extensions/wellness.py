@@ -313,7 +313,6 @@ class WellnessStudio(Gesta):
         return (
             session.query(Person)
             .filter(Person.roles.any(Role.name == "client"))
-            .filter(Person.is_active == True)
             .order_by(Person.name)
             .all()
         )
@@ -323,7 +322,6 @@ class WellnessStudio(Gesta):
         return (
             session.query(Person)
             .filter(Person.roles.any(Role.is_provider == True))
-            .filter(Person.is_active == True)
             .order_by(Person.name)
             .all()
         )

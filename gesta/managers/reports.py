@@ -10,7 +10,7 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
 from collections import defaultdict
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
 from gesta.core.entities import (
@@ -145,6 +145,11 @@ class ReportManager:
     ) -> list[Transaction]:
         return (
             self.session.query(Transaction)
+            .options(
+            selectinload(Transaction.offering),
+            selectinload(Transaction.clients),
+            selectinload(Transaction.providers),
+            )
             .filter(
                 Transaction.occurred_at >= start,
                 Transaction.occurred_at <= end,
@@ -159,6 +164,14 @@ class ReportManager:
     ) -> list[Payment]:
         return (
             self.session.query(Payment)
+            .options(
+            selectinload(Payment.transactions)
+                .selectinload(Transaction.offering),
+            selectinload(Payment.transactions)
+                .selectinload(Transaction.clients),
+            selectinload(Payment.transactions)
+                .selectinload(Transaction.providers),
+            )
             .filter(
                 Payment.is_refund == False,
                 Payment.paid_at >= start,

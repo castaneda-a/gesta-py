@@ -154,6 +154,7 @@ class TransactionManager:
             occurred_at = occurred_at,
             notes       = notes,
         )
+        tx.offering = offering
         tx.clients   = clients
         tx.providers = providers
 
@@ -207,6 +208,9 @@ class TransactionManager:
         )
         tx.clients   = list(appt.clients)
         tx.providers = list(appt.providers)
+        tx.appointment = appt
+        tx.offering = appt.service
+        appt.transaction = tx
 
         appt.status = AppointmentStatus.COMPLETED
 
