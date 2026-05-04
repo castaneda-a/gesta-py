@@ -1,6 +1,6 @@
 # Gesta
 
-A Python library for business administration — appointments, transactions, payments, and reporting in a clean, extensible API.
+A Python library for hanling Gesta, a Customer Relationship Manager (CRM) — appointments, transactions, payments, and reporting in a clean, extensible API.
 
 ---
 
