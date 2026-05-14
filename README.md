@@ -1134,4 +1134,4 @@ gesta/
 
 ## License
 
-GNU Affero General Public License v3.0 — see [LICENSE](LICENSE) for details.
+MIT license — see [LICENSE](LICENSE) for details.

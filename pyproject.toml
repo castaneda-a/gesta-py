@@ -4,7 +4,7 @@ version = "0.1.4"
 description = "A Python library designed to handle administration for businesses."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "AGPL-3.0-or-later" }
+license = { text = "MIT" }
 authors = [
     { name = "Angel", email = "ascastagar@gmail.com" }
 ]
