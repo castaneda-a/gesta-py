@@ -9,7 +9,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from gesta.gesta import Gesta
 from gesta.core.entities import Person, Role, Service, Product
@@ -312,6 +312,7 @@ class WellnessStudio(Gesta):
         """Retorna todas las personas con rol client."""
         return (
             session.query(Person)
+            .options(selectinload(Person.roles))
             .filter(Person.roles.any(Role.name == "client"))
             .order_by(Person.name)
             .all()
@@ -321,6 +322,7 @@ class WellnessStudio(Gesta):
         """Retorna todas las personas con rol proveedor activas."""
         return (
             session.query(Person)
+            .options(selectinload(Person.roles))
             .filter(Person.roles.any(Role.is_provider == True))
             .order_by(Person.name)
             .all()

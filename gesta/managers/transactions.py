@@ -10,7 +10,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from gesta.core.entities import (
     Transaction,
@@ -230,6 +230,11 @@ class TransactionManager:
         """Retorna todas las transacciones de un cliente."""
         return (
             self.session.query(Transaction)
+            .options(
+                selectinload(Transaction.offering),
+                selectinload(Transaction.clients),
+                selectinload(Transaction.providers),
+            )
             .filter(Transaction.clients.any(Person.id == client_id))
             .order_by(Transaction.occurred_at.desc())
             .all()
@@ -239,6 +244,11 @@ class TransactionManager:
         """Retorna todas las transacciones de un proveedor."""
         return (
             self.session.query(Transaction)
+            .options(
+                selectinload(Transaction.offering),
+                selectinload(Transaction.clients),
+                selectinload(Transaction.providers),
+            )
             .filter(Transaction.providers.any(Person.id == provider_id))
             .order_by(Transaction.occurred_at.desc())
             .all()
@@ -248,6 +258,11 @@ class TransactionManager:
         """Retorna todas las transacciones con un estado dado."""
         return (
             self.session.query(Transaction)
+            .options(
+                selectinload(Transaction.offering),
+                selectinload(Transaction.clients),
+                selectinload(Transaction.providers),
+            )
             .filter(Transaction.status == status)
             .order_by(Transaction.occurred_at.desc())
             .all()
@@ -261,6 +276,11 @@ class TransactionManager:
         """Retorna todas las transacciones dentro de un rango de fechas."""
         return (
             self.session.query(Transaction)
+            .options(
+                selectinload(Transaction.offering),
+                selectinload(Transaction.clients),
+                selectinload(Transaction.providers),
+            )
             .filter(
                 Transaction.occurred_at >= start,
                 Transaction.occurred_at <= end,
@@ -273,6 +293,11 @@ class TransactionManager:
         """Retorna todas las transacciones con balance pendiente."""
         return (
             self.session.query(Transaction)
+            .options(
+                selectinload(Transaction.offering),
+                selectinload(Transaction.clients),
+                selectinload(Transaction.providers),
+            )
             .filter(Transaction.status == TransactionStatus.PENDING)
             .order_by(Transaction.occurred_at)
             .all()
@@ -476,12 +501,27 @@ class PaymentManager:
     def list_by_transaction(self, transaction_id: str) -> list[Payment]:
         """Retorna todos los pagos asociados a una transacción."""
         tx = self._get_transaction_or_raise(transaction_id)
-        return tx.payments
+        return (
+            self.session.query(Payment)
+            .options(
+                selectinload(Payment.transactions).selectinload(Transaction.offering),
+                selectinload(Payment.transactions).selectinload(Transaction.clients),
+                selectinload(Payment.transactions).selectinload(Transaction.providers),
+            )
+            .filter(Payment.transactions.any(Transaction.id == transaction_id))
+            .order_by(Payment.paid_at.desc())
+            .all()
+        )
 
     def list_by_method(self, method: PaymentMethod) -> list[Payment]:
         """Retorna todos los pagos por método de pago."""
         return (
             self.session.query(Payment)
+            .options(
+                selectinload(Payment.transactions).selectinload(Transaction.offering),
+                selectinload(Payment.transactions).selectinload(Transaction.clients),
+                selectinload(Payment.transactions).selectinload(Transaction.providers),
+            )
             .filter(Payment.method == method)
             .order_by(Payment.paid_at.desc())
             .all()
@@ -495,6 +535,11 @@ class PaymentManager:
         """Retorna todos los pagos dentro de un rango de fechas."""
         return (
             self.session.query(Payment)
+            .options(
+                selectinload(Payment.transactions).selectinload(Transaction.offering),
+                selectinload(Payment.transactions).selectinload(Transaction.clients),
+                selectinload(Payment.transactions).selectinload(Transaction.providers),
+            )
             .filter(
                 Payment.paid_at >= start,
                 Payment.paid_at <= end,

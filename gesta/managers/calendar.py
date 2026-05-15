@@ -9,7 +9,7 @@
 
 import uuid
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from gesta.core.entities import (
     Appointment,
@@ -150,6 +150,11 @@ class AppointmentManager:
         """Retorna todas las citas del día de la fecha dada."""
         return (
             self.session.query(Appointment)
+            .options(
+                selectinload(Appointment.service),
+                selectinload(Appointment.clients),
+                selectinload(Appointment.providers),
+            )
             .filter(
                 Appointment.scheduled_at >= date.replace(hour=0, minute=0, second=0),
                 Appointment.scheduled_at <= date.replace(hour=23, minute=59, second=59),
@@ -162,6 +167,11 @@ class AppointmentManager:
         """Retorna todas las citas de un cliente."""
         return (
             self.session.query(Appointment)
+            .options(
+                selectinload(Appointment.service),
+                selectinload(Appointment.clients),
+                selectinload(Appointment.providers),
+            )
             .filter(
                 Appointment.clients.any(Person.id == client_id)
             )
@@ -173,6 +183,11 @@ class AppointmentManager:
         """Retorna todas las citas de un proveedor."""
         return (
             self.session.query(Appointment)
+            .options(
+                selectinload(Appointment.service),
+                selectinload(Appointment.clients),
+                selectinload(Appointment.providers),
+            )
             .filter(
                 Appointment.providers.any(Person.id == provider_id)
             )
@@ -184,6 +199,11 @@ class AppointmentManager:
         """Retorna todas las citas con un estado dado."""
         return (
             self.session.query(Appointment)
+            .options(
+                selectinload(Appointment.service),
+                selectinload(Appointment.clients),
+                selectinload(Appointment.providers),
+            )
             .filter(Appointment.status == status)
             .order_by(Appointment.scheduled_at)
             .all()
@@ -193,6 +213,11 @@ class AppointmentManager:
         """Retorna todas las citas futuras en estado SCHEDULED."""
         return (
             self.session.query(Appointment)
+            .options(
+                selectinload(Appointment.service),
+                selectinload(Appointment.clients),
+                selectinload(Appointment.providers),
+            )
             .filter(
                 Appointment.status == AppointmentStatus.SCHEDULED,
                 Appointment.scheduled_at > datetime.now(),
