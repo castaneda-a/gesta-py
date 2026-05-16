@@ -26,29 +26,21 @@ WELLNESS_ROLES = [
         "id":           "role_client",
         "name":         "client",
         "description":  "Cliente que recibe servicios o compra productos.",
-        "is_provider":  False,
-        "is_recipient": True,
     },
     {
         "id":           "role_therapist",
         "name":         "therapist",
         "description":  "Terapeuta que imparte masajes y terapias corporales.",
-        "is_provider":  True,
-        "is_recipient": False,
     },
     {
         "id":           "role_instructor",
         "name":         "instructor",
         "description":  "Instructor que imparte clases grupales como yoga o meditación.",
-        "is_provider":  True,
-        "is_recipient": False,
     },
     {
         "id":           "role_admin",
         "name":         "admin",
         "description":  "Administrador del negocio. Puede ser proveedor y cliente.",
-        "is_provider":  True,
-        "is_recipient": True,
     },
 ]
 
@@ -64,8 +56,8 @@ WELLNESS_SERVICES = [
         "description":      "Masaje relajante de cuerpo completo.",
         "price":            Decimal("600.00"),
         "cost":             Decimal("150.00"),
-        "duration_minutes": "60",
-        "requires_provider": True,
+        "duration_min":     60,
+        "requires_space":   True,
     },
     {
         "id":               "svc_masaje_piedras",
@@ -73,8 +65,8 @@ WELLNESS_SERVICES = [
         "description":      "Masaje terapéutico con piedras volcánicas.",
         "price":            Decimal("800.00"),
         "cost":             Decimal("200.00"),
-        "duration_minutes": "75",
-        "requires_provider": True,
+        "duration_min":     75,
+        "requires_space":   True,
     },
     {
         "id":               "svc_yoga_grupal",
@@ -82,8 +74,8 @@ WELLNESS_SERVICES = [
         "description":      "Clase de yoga para grupos de hasta 15 personas.",
         "price":            Decimal("120.00"),
         "cost":             Decimal("300.00"),
-        "duration_minutes": "60",
-        "requires_provider": True,
+        "duration_min":     60,
+        "requires_space":   True,
     },
     {
         "id":               "svc_meditacion",
@@ -91,8 +83,8 @@ WELLNESS_SERVICES = [
         "description":      "Sesión guiada de meditación y mindfulness.",
         "price":            Decimal("100.00"),
         "cost":             Decimal("200.00"),
-        "duration_minutes": "45",
-        "requires_provider": True,
+        "duration_min":     45,
+        "requires_space":   True,
     },
     {
         "id":               "svc_terapia",
@@ -100,8 +92,8 @@ WELLNESS_SERVICES = [
         "description":      "Sesión individual de terapia holística.",
         "price":            Decimal("900.00"),
         "cost":             Decimal("250.00"),
-        "duration_minutes": "90",
-        "requires_provider": True,
+        "duration_min":     90,
+        "requires_space":   True,
     },
 ]
 
@@ -117,8 +109,7 @@ WELLNESS_PRODUCTS = [
         "description":     "Aceite esencial 100% puro, 10ml.",
         "price":           Decimal("180.00"),
         "cost":            Decimal("60.00"),
-        "stock":           Decimal("50"),
-        "track_inventory": True,
+        "stock":           50,
     },
     {
         "id":              "prd_incienso",
@@ -126,8 +117,7 @@ WELLNESS_PRODUCTS = [
         "description":     "Paquete de 20 varillas de incienso de sándalo.",
         "price":           Decimal("80.00"),
         "cost":            Decimal("25.00"),
-        "stock":           Decimal("100"),
-        "track_inventory": True,
+        "stock":           100,
     },
     {
         "id":              "prd_vela",
@@ -135,8 +125,7 @@ WELLNESS_PRODUCTS = [
         "description":     "Vela de soya con aromas naturales, 200g.",
         "price":           Decimal("220.00"),
         "cost":            Decimal("70.00"),
-        "stock":           Decimal("30"),
-        "track_inventory": True,
+        "stock":           30,
     },
     {
         "id":              "prd_hierbas",
@@ -144,8 +133,7 @@ WELLNESS_PRODUCTS = [
         "description":     "Mezcla de hierbas para infusión relajante, 50g.",
         "price":           Decimal("120.00"),
         "cost":            Decimal("30.00"),
-        "stock":           Decimal("40"),
-        "track_inventory": True,
+        "stock":           40,
     },
 ]
 
@@ -203,26 +191,18 @@ class WellnessStudio(Gesta):
 
     def _ensure_services(self, session: Session) -> None:
         """Crea los servicios de ejemplo si no existen."""
-        from gesta.core.entities import OfferingType
         for svc_data in WELLNESS_SERVICES:
             existing = session.get(Service, svc_data["id"])
             if not existing:
-                svc = Service(
-                    type = OfferingType.SERVICE,
-                    **svc_data,
-                )
+                svc = Service(**svc_data)
                 session.add(svc)
 
     def _ensure_products(self, session: Session) -> None:
         """Crea los productos de ejemplo si no existen."""
-        from gesta.core.entities import OfferingType
         for prd_data in WELLNESS_PRODUCTS:
             existing = session.get(Product, prd_data["id"])
             if not existing:
-                prd = Product(
-                    type = OfferingType.PRODUCT,
-                    **prd_data,
-                )
+                prd = Product(**prd_data)
                 session.add(prd)
 
     # -----------------------------------------------------------------------
@@ -262,6 +242,8 @@ class WellnessStudio(Gesta):
             phone = phone,
             email = email,
             notes = notes,
+            is_provider = False,
+            is_recipient = True,
         )
         person.roles = [role]
         session.add(person)
@@ -286,7 +268,7 @@ class WellnessStudio(Gesta):
 
         role_obj = self._get_role_or_raise(session, role)
 
-        if not role_obj.is_provider:
+        if role not in ["therapist", "instructor", "admin"]:
             from gesta.core.exceptions import InvalidRoleError
             raise InvalidRoleError(name, role)
 
@@ -296,6 +278,8 @@ class WellnessStudio(Gesta):
             phone = phone,
             email = email,
             notes = notes,
+            is_provider = True,
+            is_recipient = (role == "admin"),
         )
         person.roles = [role_obj]
         session.add(person)
@@ -309,21 +293,21 @@ class WellnessStudio(Gesta):
         return person
 
     def list_clients(self, session: Session) -> list[Person]:
-        """Retorna todas las personas con rol client."""
+        """Retorna todas las personas que son clientes (is_recipient=True)."""
         return (
             session.query(Person)
             .options(selectinload(Person.roles))
-            .filter(Person.roles.any(Role.name == "client"))
+            .filter(Person.is_recipient == True)
             .order_by(Person.name)
             .all()
         )
 
     def list_providers(self, session: Session) -> list[Person]:
-        """Retorna todas las personas con rol proveedor activas."""
+        """Retorna todas las personas activas como proveedores (is_provider=True)."""
         return (
             session.query(Person)
             .options(selectinload(Person.roles))
-            .filter(Person.roles.any(Role.is_provider == True))
+            .filter(Person.is_provider == True)
             .order_by(Person.name)
             .all()
         )

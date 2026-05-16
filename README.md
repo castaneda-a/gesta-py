@@ -98,106 +98,172 @@ with studio.session() as s:
 | Entity | Description |
 |---|---|
 | `Person` | Any participant — client, therapist, instructor, etc. |
-| `Role` | What role a person plays (`is_provider`, `is_recipient`) |
+| `Role` | A business role that can be assigned to a person |
 | `Service` | An offering that requires scheduling and a provider |
 | `Product` | A physical offering with inventory |
 | `Appointment` | A future reservation of a service |
 | `Transaction` | A record that a service was delivered or a product was sold |
 | `Payment` | A money movement linked to one or more transactions |
 
+---
 
 ### Attributes of entities
 
 #### Person
 | persons | Data type | Nullable |
 |---|---|---|
-| `id` | String | primary key |
+| `id` | String | primary key, F |
 | `name` | String(120) | F |
-| `email` | String(120) | T | 
+| `email` | String(120) | T |
 | `phone` | String(30) | T |
-| `notes` | Text | T | 
+| `is_provider` | Boolean | F |
+| `is_recipient` | Boolean | F |
+| `notes` | Text | T |
 | `created_at` | DateTime | F |
-| `updated_at` | DateTime | F |
 
 #### Role
 | roles | Data type | Nullable |
 |---|---|---|
-| `id` | String | primary key |
+| `id` | String | primary key, F |
 | `name` | String(120) | F |
-| `description` | Text | T | 
-| `is_provider` | Boolean | F |
-| `is_recipient` | Boolean | F |
+| `description` | Text | T |
 
-#### Offering
-| offerings | Data type | Nullable |
+#### Service
+| services | Data type | Nullable |
 |---|---|---|
-| `id` | String | primary key |
-| `type` | OfferingType | F |
+| `id` | String | primary key, F |
 | `name` | String(120) | F |
-| `description` | Text | T | 
+| `description` | Text | T |
 | `price` | Numeric(10,2) | F |
 | `cost` | Numeric(10,2) | T |
+| `duration_min` | Integer | T |
+| `requires_space` | Boolean | F |
 | `is_active` | Boolean | F |
 | `created_at` | DateTime | F |
 
-donde OfferingType:
-1. SERVICE
-2. PRODUCT
-
+#### Product
+| products | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key, F |
+| `name` | String(120) | F |
+| `description` | Text | T |
+| `price` | Numeric(10,2) | F |
+| `cost` | Numeric(10,2) | T |
+| `stock` | Integer | T |
+| `supplier` | String(120) | T |
+| `is_active` | Boolean | F |
+| `created_at` | DateTime | F |
 
 #### Appointment
 | appointments | Data type | Nullable |
 |---|---|---|
-| `id` | String | primary key |
-| `service_id` | String | foreign key |
+| `id` | String | primary key, F |
+| `service_id` | String | foreign key, F |
 | `status` | AppointmentStatus | F |
 | `scheduled_at` | DateTime | F |
 | `registered_at` | DateTime | F |
-| `notes` | Text | T | 
+| `notes` | Text | T |
+| `created_at` | DateTime | F |
 
-donde AppointmentStatus:
-1. SCHEDULED
-2. COMPLETED
-3. CANCELLED
-4. NO_SHOW
-
+AppointmentStatus: `SCHEDULED` `COMPLETED` `CANCELLED` `NO_SHOW`
 
 #### Transaction
 | transactions | Data type | Nullable |
 |---|---|---|
-| `id` | String | primary key |
-| `appointment_id` | String | foreign key |
-| `offering_id` | String | foreign key |
+| `id` | String | primary key, F |
+| `appointment_id` | String | foreign key, T |
+| `service_id` | String | foreign key, T |
+| `product_id` | String | foreign key, T |
 | `amount` | Numeric(10,2) | F |
 | `cost_amount` | Numeric(10,2) | T |
 | `status` | TransactionStatus | F |
 | `occurred_at` | DateTime | F |
 | `created_at` | DateTime | F |
-| `notes` | Text | T | 
+| `notes` | Text | T |
 
-donde TransactionStatus:
-1. PENDING
-2. PAID
-3. PARTIAL
-4. REFUNDED
-
+TransactionStatus: `PENDING` `PAID` `PARTIAL` `REFUNDED`
 
 #### Payment
 | payments | Data type | Nullable |
 |---|---|---|
-| `id` | String | primary key |
+| `id` | String | primary key, F |
 | `amount` | Numeric(10,2) | F |
 | `method` | PaymentMethod | F |
 | `is_refund` | Boolean | F |
 | `paid_at` | DateTime | F |
 | `created_at` | DateTime | F |
-| `notes` | Text | T | 
+| `notes` | Text | T |
 
-donde PaymentMethod:
-1. CASH
-2. CARD
-3. TRANSFER
-4. OTHER
+PaymentMethod: `CASH` `CARD` `TRANSFER` `OTHER`
+
+---
+
+### intermediate tables
+#### person-service
+| persons-services | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `id_person` | String | foreign key, F |
+| `id_service` | String | foreign key, T |
+
+
+#### person-appointment
+| persons-appointments | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `id_person` | String | foreign key, T |
+| `id_appointment` | String | foreign key, T |
+
+
+#### person-transaction
+| persons-transactions | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `id_person` | String | foreign key, F |
+| `id_transaction` | String | foreign key, T |
+
+
+#### person-role
+| persons-roles | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `id_person` | String | foreign key, T |
+| `id_role` | String | foreign key, T |
+
+#### transaction-payments
+| transactions-payments | Data type | Nullable |
+|---|---|---|
+| `id` | String | primary key |
+| `id_transaction` | String | foreign key, F |
+| `id_payment` | String | foreign key, T |
+
+
+
+
+### Relationships
+
+```
+notation: a - b(0) means a can have 0 of b, but b must have at least one of a.
+
+persons(0)      — roles(0)         : m-m
+persons(0)      — appointments(0)  : m-m
+persons      — transactions(0)  : m-m
+persons      — services(0)      : m-m
+
+appointments(0)    — services      : m-o
+appointments(0) — transactions(0)  : o-o
+
+transactions(0)    — services(0)      : m-o       
+transactions(0) — products(0)      : m-o
+transactions — payments(0)   : m-m
+```
+
+Gesta utilizes explicit junction tables to correctly model all many-to-many relationships:
+- `persons_services`: Links a person with the services they provide or receive.
+- `persons_appointments`: Links multiple people (e.g. 1 provider, 2 clients) to a single appointment.
+- `persons_transactions`: Links multiple people to a single transaction.
+- `persons_roles`: Allows a person to hold multiple roles.
+- `transactions_payments`: Permits a single payment to settle multiple transactions, or multiple payments for one transaction.
 
 
 ### Transaction vs Appointment

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 from gesta.core.entities import (
     Appointment,
     AppointmentStatus,
-    Offering,
+    Service,
     Person,
 )
 from gesta.core.exceptions import (
@@ -60,11 +60,11 @@ class AppointmentManager:
             raise NotFoundError("Appointment", appointment_id)
         return appt
 
-    def _get_offering_or_raise(self, service_id: str) -> Offering:
-        offering = self.session.get(Offering, service_id)
-        if not offering:
-            raise NotFoundError("Offering", service_id)
-        return offering
+    def _get_service_or_raise(self, service_id: str) -> Service:
+        service = self.session.get(Service, service_id)
+        if not service:
+            raise NotFoundError("Service", service_id)
+        return service
 
     def _get_persons_or_raise(self, person_ids: list[str]) -> list[Person]:
         persons = []
@@ -106,7 +106,7 @@ class AppointmentManager:
         validate_required_list(client_ids, "client_ids")
 
         # Cargar entidades
-        service   = self._get_offering_or_raise(service_id)
+        service   = self._get_service_or_raise(service_id)
         clients   = self._get_persons_or_raise(client_ids)
         providers = self._get_persons_or_raise(provider_ids)
 
@@ -116,7 +116,7 @@ class AppointmentManager:
         validate_persons_are_providers(providers)
         validate_service_has_provider(service, providers)
 
-        duration = int(service.duration_minutes) if service.duration_minutes else 60
+        duration = int(service.duration_min) if service.duration_min else 60
         validate_no_schedule_conflict(
             session      = self.session,
             provider_ids = provider_ids,
@@ -132,8 +132,7 @@ class AppointmentManager:
             status = AppointmentStatus.SCHEDULED,
         )
         appt.service = service
-        appt.clients   = clients
-        appt.providers = providers
+        appt.persons = clients + providers
 
         self.session.add(appt)
         return appt
@@ -152,8 +151,7 @@ class AppointmentManager:
             self.session.query(Appointment)
             .options(
                 selectinload(Appointment.service),
-                selectinload(Appointment.clients),
-                selectinload(Appointment.providers),
+                selectinload(Appointment.persons),
             )
             .filter(
                 Appointment.scheduled_at >= date.replace(hour=0, minute=0, second=0),
@@ -169,11 +167,10 @@ class AppointmentManager:
             self.session.query(Appointment)
             .options(
                 selectinload(Appointment.service),
-                selectinload(Appointment.clients),
-                selectinload(Appointment.providers),
+                selectinload(Appointment.persons),
             )
             .filter(
-                Appointment.clients.any(Person.id == client_id)
+                Appointment.persons.any(Person.id == client_id)
             )
             .order_by(Appointment.scheduled_at.desc())
             .all()
@@ -185,11 +182,10 @@ class AppointmentManager:
             self.session.query(Appointment)
             .options(
                 selectinload(Appointment.service),
-                selectinload(Appointment.clients),
-                selectinload(Appointment.providers),
+                selectinload(Appointment.persons),
             )
             .filter(
-                Appointment.providers.any(Person.id == provider_id)
+                Appointment.persons.any(Person.id == provider_id)
             )
             .order_by(Appointment.scheduled_at.desc())
             .all()
@@ -201,8 +197,7 @@ class AppointmentManager:
             self.session.query(Appointment)
             .options(
                 selectinload(Appointment.service),
-                selectinload(Appointment.clients),
-                selectinload(Appointment.providers),
+                selectinload(Appointment.persons),
             )
             .filter(Appointment.status == status)
             .order_by(Appointment.scheduled_at)
@@ -215,8 +210,7 @@ class AppointmentManager:
             self.session.query(Appointment)
             .options(
                 selectinload(Appointment.service),
-                selectinload(Appointment.clients),
-                selectinload(Appointment.providers),
+                selectinload(Appointment.persons),
             )
             .filter(
                 Appointment.status == AppointmentStatus.SCHEDULED,
@@ -251,10 +245,12 @@ class AppointmentManager:
 
         validate_future_datetime(new_datetime, "new_datetime")
 
-        duration = int(appt.service.duration_minutes) if appt.service.duration_minutes else 60
+        duration = int(appt.service.duration_min) if appt.service.duration_min else 60
+        providers = [p for p in appt.persons if p.is_provider]
+        
         validate_no_schedule_conflict(
             session          = self.session,
-            provider_ids     = [p.id for p in appt.providers],
+            provider_ids     = [p.id for p in providers],
             scheduled_at     = new_datetime,
             duration_minutes = duration,
             exclude_appointment_id = appointment_id,

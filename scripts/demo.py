@@ -104,7 +104,7 @@ def main():
         )
         tx2_id = tx2.id
         print(f"  Transaction: Ana + Luis — Group yoga (2 clients)")
-        print(f"    Amount:  ${tx2.amount}  (${tx2.price_per_client}/client)")
+        print(f"    Amount:  ${tx2.amount}  (${tx2.price_per_person}/client)")
         print(f"    Cost:    ${tx2.cost_amount}")
         print(f"    Profit:  ${tx2.profit}")
 
@@ -140,7 +140,7 @@ def main():
 
     with studio.session() as s:
         tx3 = studio.transactions(s).register(
-            offering_id  = "prd_aceite_lavanda",
+            product_id   = "prd_aceite_lavanda",
             client_ids   = [ana_id],
             occurred_at  = datetime.now(),
         )

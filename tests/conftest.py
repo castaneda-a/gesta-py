@@ -12,7 +12,7 @@ from decimal import Decimal
 from gesta.core.database import create_db_engine, create_session_factory, init_db
 from gesta.core.entities import (
     Person, Role, Service, Product,
-    OfferingType, AppointmentStatus, TransactionStatus,
+    AppointmentStatus, TransactionStatus,
 )
 
 
@@ -22,10 +22,6 @@ from gesta.core.entities import (
 
 @pytest.fixture(scope="session")
 def engine():
-    """
-    Engine SQLite en memoria compartido por toda la sesión de tests.
-    scope="session" significa que se crea una sola vez para todos los tests.
-    """
     engine = create_db_engine("sqlite:///:memory:", echo=False)
     init_db(engine)
     return engine
@@ -33,10 +29,6 @@ def engine():
 
 @pytest.fixture(scope="function")
 def session(engine):
-    """
-    Sesión de BD limpia para cada test.
-    Usa rollback al final para que cada test empiece con BD vacía.
-    """
     factory    = create_session_factory(engine)
     db_session = factory()
     yield db_session
@@ -50,24 +42,17 @@ def session(engine):
 
 @pytest.fixture
 def roles(session):
-    """Crea y retorna los roles básicos de wellness."""
     client_role = Role(
         id           = "role_client",
         name         = "client",
-        is_provider  = False,
-        is_recipient = True,
     )
     therapist_role = Role(
         id           = "role_therapist",
         name         = "therapist",
-        is_provider  = True,
-        is_recipient = False,
     )
     instructor_role = Role(
         id           = "role_instructor",
         name         = "instructor",
-        is_provider  = True,
-        is_recipient = False,
     )
 
     session.add_all([client_role, therapist_role, instructor_role])
@@ -86,12 +71,13 @@ def roles(session):
 
 @pytest.fixture
 def client_ana(session, roles):
-    """Persona con rol client."""
     person = Person(
-        id    = "person_ana",
-        name  = "Ana García",
-        email = "ana@mail.com",
-        phone = "5551234567",
+        id           = "person_ana",
+        name         = "Ana García",
+        email        = "ana@mail.com",
+        phone        = "5551234567",
+        is_provider  = False,
+        is_recipient = True,
     )
     person.roles = [roles["client"]]
     session.add(person)
@@ -101,11 +87,12 @@ def client_ana(session, roles):
 
 @pytest.fixture
 def client_luis(session, roles):
-    """Segunda persona con rol client — para tests grupales."""
     person = Person(
-        id    = "person_luis",
-        name  = "Luis Ramos",
-        email = "luis@mail.com",
+        id           = "person_luis",
+        name         = "Luis Ramos",
+        email        = "luis@mail.com",
+        is_provider  = False,
+        is_recipient = True,
     )
     person.roles = [roles["client"]]
     session.add(person)
@@ -115,11 +102,12 @@ def client_luis(session, roles):
 
 @pytest.fixture
 def therapist_marta(session, roles):
-    """Persona con rol therapist."""
     person = Person(
-        id    = "person_marta",
-        name  = "Marta López",
-        email = "marta@mail.com",
+        id           = "person_marta",
+        name         = "Marta López",
+        email        = "marta@mail.com",
+        is_provider  = True,
+        is_recipient = False,
     )
     person.roles = [roles["therapist"]]
     session.add(person)
@@ -129,11 +117,12 @@ def therapist_marta(session, roles):
 
 @pytest.fixture
 def instructor_pedro(session, roles):
-    """Persona con rol instructor."""
     person = Person(
-        id    = "person_pedro",
-        name  = "Pedro Soto",
-        email = "pedro@mail.com",
+        id           = "person_pedro",
+        name         = "Pedro Soto",
+        email        = "pedro@mail.com",
+        is_provider  = True,
+        is_recipient = False,
     )
     person.roles = [roles["instructor"]]
     session.add(person)
@@ -147,15 +136,13 @@ def instructor_pedro(session, roles):
 
 @pytest.fixture
 def service_masaje(session):
-    """Servicio de masaje sueco — requiere proveedor, 60 min."""
     service = Service(
         id               = "svc_masaje",
-        type             = OfferingType.SERVICE,
         name             = "Masaje sueco",
         price            = Decimal("600.00"),
         cost             = Decimal("150.00"),
-        duration_minutes = "60",
-        requires_provider = True,
+        duration_min     = 60,
+        requires_space   = True,
         is_active        = True,
     )
     session.add(service)
@@ -165,15 +152,13 @@ def service_masaje(session):
 
 @pytest.fixture
 def service_yoga(session):
-    """Servicio de yoga grupal — requiere proveedor, 60 min."""
     service = Service(
         id               = "svc_yoga",
-        type             = OfferingType.SERVICE,
         name             = "Clase de yoga",
         price            = Decimal("120.00"),
         cost             = Decimal("300.00"),
-        duration_minutes = "60",
-        requires_provider = True,
+        duration_min     = 60,
+        requires_space   = True,
         is_active        = True,
     )
     session.add(service)
@@ -183,15 +168,12 @@ def service_yoga(session):
 
 @pytest.fixture
 def product_aceite(session):
-    """Producto de aceite esencial."""
     product = Product(
         id             = "prd_aceite",
-        type           = OfferingType.PRODUCT,
         name           = "Aceite de lavanda",
         price          = Decimal("180.00"),
         cost           = Decimal("60.00"),
-        stock          = Decimal("50"),
-        track_inventory = True,
+        stock          = 50,
         is_active      = True,
     )
     session.add(product)
@@ -205,11 +187,9 @@ def product_aceite(session):
 
 @pytest.fixture
 def future_date():
-    """Fecha en el futuro — para citas válidas."""
     return datetime.now() + timedelta(days=7)
 
 
 @pytest.fixture
 def past_date():
-    """Fecha en el pasado — para tests de validación."""
     return datetime.now() - timedelta(days=1)

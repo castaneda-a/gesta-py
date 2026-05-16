@@ -11,7 +11,6 @@ from gesta.core.entities import (
     Base,
     Person,
     Role,
-    Offering,
     Service,
     Product,
     Appointment,
@@ -20,7 +19,6 @@ from gesta.core.entities import (
     PaymentMethod,
     AppointmentStatus,
     TransactionStatus,
-    OfferingType,
 )
 
 from gesta.core.database import (
@@ -47,7 +45,6 @@ __all__ = [
     "Base",
     "Person",
     "Role",
-    "Offering",
     "Service",
     "Product",
     "Appointment",
@@ -57,7 +54,6 @@ __all__ = [
     "PaymentMethod",
     "AppointmentStatus",
     "TransactionStatus",
-    "OfferingType",
     # Base de datos (uso común)
     "init_db",
     "check_connection",

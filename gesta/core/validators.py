@@ -19,7 +19,7 @@ from gesta.core.exceptions import (
     InvalidRoleError,
     InactiveOfferingError,
 )
-from gesta.core.entities import Appointment, AppointmentStatus, Offering
+from gesta.core.entities import Appointment, AppointmentStatus
 
 
 # ---------------------------------------------------------------------------
@@ -27,10 +27,6 @@ from gesta.core.entities import Appointment, AppointmentStatus, Offering
 # ---------------------------------------------------------------------------
 
 def validate_future_datetime(dt: datetime, field_name: str = "fecha") -> None:
-    """
-    Verifica que una fecha/hora sea en el futuro.
-    Se usa al crear o modificar citas.
-    """
     if dt <= datetime.now():
         raise ValidationError(
             f"El campo {field_name!r} debe ser una fecha y hora futura. "
@@ -39,9 +35,6 @@ def validate_future_datetime(dt: datetime, field_name: str = "fecha") -> None:
 
 
 def validate_datetime_range(start: datetime, end: datetime) -> None:
-    """
-    Verifica que start sea anterior a end.
-    """
     if start >= end:
         raise ValidationError(
             f"La fecha de inicio ({start}) debe ser anterior "
@@ -54,10 +47,6 @@ def validate_datetime_range(start: datetime, end: datetime) -> None:
 # ---------------------------------------------------------------------------
 
 def validate_positive_amount(amount: Decimal, field_name: str = "monto") -> None:
-    """
-    Verifica que un monto sea estrictamente positivo.
-    Se usa al registrar precios, pagos y transacciones.
-    """
     if amount <= Decimal("0"):
         raise ValidationError(
             f"El campo {field_name!r} debe ser mayor a cero. "
@@ -69,10 +58,6 @@ def validate_payment_does_not_exceed_balance(
     payment_amount: Decimal,
     current_balance: Decimal,
 ) -> None:
-    """
-    Verifica que un pago no exceda el balance pendiente de la transacción.
-    Previene overpayments accidentales.
-    """
     if payment_amount > current_balance:
         raise ValidationError(
             f"El monto del pago ({payment_amount}) excede el balance "
@@ -85,9 +70,6 @@ def validate_payment_does_not_exceed_balance(
 # ---------------------------------------------------------------------------
 
 def validate_required_string(value: str, field_name: str) -> None:
-    """
-    Verifica que un string no sea None ni vacío.
-    """
     if not value or not value.strip():
         raise ValidationError(
             f"El campo {field_name!r} es requerido y no puede estar vacío."
@@ -95,10 +77,6 @@ def validate_required_string(value: str, field_name: str) -> None:
 
 
 def validate_required_list(value: list, field_name: str) -> None:
-    """
-    Verifica que una lista no sea None ni vacía.
-    Se usa para validar que una cita tenga al menos un cliente.
-    """
     if not value:
         raise ValidationError(
             f"El campo {field_name!r} debe contener al menos un elemento."
@@ -109,52 +87,37 @@ def validate_required_list(value: list, field_name: str) -> None:
 # Offerings
 # ---------------------------------------------------------------------------
 
-def validate_offering_is_active(offering: Offering) -> None:
+def validate_offering_is_active(item) -> None:
     """
-    Verifica que un servicio o producto esté activo antes de
-    usarlo en una cita o transacción.
+    Verifica que un servicio o producto esté activo.
     """
-    if not offering.is_active:
-        raise InactiveOfferingError(offering.name)
+    if not getattr(item, 'is_active', True):
+        raise InactiveOfferingError(item.name)
 
 
 def validate_service_has_provider(
-    offering: Offering,
+    service,
     providers: list,
 ) -> None:
     """
-    Verifica que un servicio que requiere proveedor
-    tenga al menos uno asignado.
-    Los productos nunca requieren proveedor.
+    Verifica que un servicio tenga al menos un proveedor asignado.
     """
-    from gesta.core.entities import OfferingType
-    if offering.type == OfferingType.PRODUCT:
-        return
-
-    if offering.requires_provider and not providers:
-        raise NoProviderError(offering.name)
+    if not providers:
+        raise NoProviderError(service.name)
 
 # ---------------------------------------------------------------------------
 # Roles
 # ---------------------------------------------------------------------------
 
 def validate_persons_are_recipients(persons: list) -> None:
-    """
-    Verifica que todas las personas en la lista tengan
-    al menos un rol con is_recipient=True.
-    """
     for person in persons:
-        if not any(r.is_recipient for r in person.roles):
+        if not person.is_recipient:
             raise InvalidRoleError(person.name, "recipient")
 
 
 def validate_persons_are_providers(persons: list) -> None:
-    """
-    Verifica que todas las personas en la lista tengan
-    al menos un rol con is_provider=True.
-    """
     for person in persons:
-        if not any(r.is_provider for r in person.roles):
+        if not person.is_provider:
             raise InvalidRoleError(person.name, "provider")
 
 
@@ -169,13 +132,6 @@ def validate_no_schedule_conflict(
     duration_minutes: int,
     exclude_appointment_id: str = None,
 ) -> None:
-    """
-    Verifica que ninguno de los proveedores tenga una cita activa
-    que se traslape con el rango [scheduled_at, scheduled_at + duration].
-
-    exclude_appointment_id se usa al editar una cita existente
-    para no comparar la cita consigo misma.
-    """
     from datetime import timedelta
 
     end_time = scheduled_at + timedelta(minutes=duration_minutes)
@@ -192,17 +148,16 @@ def validate_no_schedule_conflict(
         if exclude_appointment_id and appt.id == exclude_appointment_id:
             continue
 
-        if appt.service is None or appt.service.duration_minutes is None:
+        if appt.service is None or appt.service.duration_min is None:
             continue
 
         appt_end = appt.scheduled_at + timedelta(
-            minutes=int(appt.service.duration_minutes)
+            minutes=int(appt.service.duration_min)
         )
 
-        # Traslape si los rangos se intersectan
         if scheduled_at < appt_end and end_time > appt.scheduled_at:
             conflicting_providers = [
-                p.id for p in appt.providers if p.id in provider_ids
+                p.id for p in appt.persons if p.is_provider and p.id in provider_ids
             ]
             if conflicting_providers:
                 raise AppointmentConflictError(

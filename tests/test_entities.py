@@ -11,8 +11,7 @@ import pytest
 
 from gesta.core.entities import (
     Person, Role, Service, Product, Appointment, Transaction, Payment,
-    OfferingType, AppointmentStatus, TransactionStatus, PaymentMethod,
-    payment_transactions,
+    AppointmentStatus, TransactionStatus, PaymentMethod,
 )
 
 
@@ -23,6 +22,8 @@ class TestPerson:
             id    = "p1",
             name  = "Carlos Ruiz",
             email = "carlos@mail.com",
+            is_recipient = True,
+            is_provider  = False,
         )
         person.roles = [roles["client"]]
         session.add(person)
@@ -54,14 +55,13 @@ class TestPerson:
         assert result.phone    is None
 
 
-class TestOffering:
+class TestServiceProduct:
 
     def test_create_service(self, session, service_masaje):
         result = session.get(Service, "svc_masaje")
         assert result.name  == "Masaje sueco"
         assert result.price == Decimal("600.00")
         assert result.cost  == Decimal("150.00")
-        assert result.type  == OfferingType.SERVICE
 
     def test_service_margin(self, session, service_masaje):
         """margin = price - cost."""
@@ -71,7 +71,6 @@ class TestOffering:
         """Si no hay costo definido, margin retorna None."""
         service = Service(
             id    = "svc_sin_costo",
-            type  = OfferingType.SERVICE,
             name  = "Servicio sin costo",
             price = Decimal("500.00"),
             cost  = None,
@@ -85,8 +84,7 @@ class TestOffering:
         assert result.name  == "Aceite de lavanda"
         assert result.price == Decimal("180.00")
         assert result.cost  == Decimal("60.00")
-        assert result.type  == OfferingType.PRODUCT
-        assert result.stock == Decimal("50")
+        assert result.stock == 50
 
 
 class TestTransaction:
@@ -97,13 +95,12 @@ class TestTransaction:
         """amount_paid suma correctamente un pago único."""
         tx = Transaction(
             id          = "tx1",
-            offering_id = service_masaje.id,
+            service_id  = service_masaje.id,
             amount      = Decimal("600.00"),
             occurred_at = datetime.now(),
             status      = TransactionStatus.PENDING,
         )
-        tx.clients   = [client_ana]
-        tx.providers = [therapist_marta]
+        tx.persons = [client_ana, therapist_marta]
         session.add(tx)
         session.flush()
 
@@ -128,20 +125,18 @@ class TestTransaction:
     ):
         """Un pago compartido entre dos transacciones divide el monto."""
         tx1 = Transaction(
-            id="tx_shared1", offering_id=service_masaje.id,
+            id="tx_shared1", service_id=service_masaje.id,
             amount=Decimal("600.00"), occurred_at=datetime.now(),
             status=TransactionStatus.PENDING,
         )
-        tx1.clients   = [client_ana]
-        tx1.providers = [therapist_marta]
+        tx1.persons = [client_ana, therapist_marta]
 
         tx2 = Transaction(
-            id="tx_shared2", offering_id=service_yoga.id,
+            id="tx_shared2", service_id=service_yoga.id,
             amount=Decimal("120.00"), occurred_at=datetime.now(),
             status=TransactionStatus.PENDING,
         )
-        tx2.clients   = [client_luis]
-        tx2.providers = [therapist_marta]
+        tx2.persons = [client_luis, therapist_marta]
 
         session.add_all([tx1, tx2])
         session.flush()
@@ -165,12 +160,11 @@ class TestTransaction:
     def test_profit(self, session, client_ana, therapist_marta, service_masaje):
         """profit = amount - cost_amount."""
         tx = Transaction(
-            id="tx_profit", offering_id=service_masaje.id,
+            id="tx_profit", service_id=service_masaje.id,
             amount=Decimal("600.00"), cost_amount=Decimal("150.00"),
             occurred_at=datetime.now(), status=TransactionStatus.PENDING,
         )
-        tx.clients   = [client_ana]
-        tx.providers = [therapist_marta]
+        tx.persons = [client_ana, therapist_marta]
         session.add(tx)
         session.flush()
 
@@ -181,12 +175,11 @@ class TestTransaction:
     ):
         """profit retorna None si no hay cost_amount."""
         tx = Transaction(
-            id="tx_no_cost", offering_id=service_masaje.id,
+            id="tx_no_cost", service_id=service_masaje.id,
             amount=Decimal("600.00"), cost_amount=None,
             occurred_at=datetime.now(), status=TransactionStatus.PENDING,
         )
-        tx.clients   = [client_ana]
-        tx.providers = [therapist_marta]
+        tx.persons = [client_ana, therapist_marta]
         session.add(tx)
         session.flush()
 
@@ -195,32 +188,33 @@ class TestTransaction:
     def test_price_per_client_single(
         self, session, client_ana, therapist_marta, service_masaje
     ):
-        """price_per_client con un solo cliente es igual al amount."""
+        """price_per_person con un solo cliente es igual al amount (en este caso total personas = 2, asi que 600/2=300)."""
         tx = Transaction(
-            id="tx_ppc1", offering_id=service_masaje.id,
+            id="tx_ppc1", service_id=service_masaje.id,
             amount=Decimal("600.00"), occurred_at=datetime.now(),
             status=TransactionStatus.PENDING,
         )
-        tx.clients   = [client_ana]
-        tx.providers = [therapist_marta]
+        tx.persons = [client_ana, therapist_marta]
         session.add(tx)
         session.flush()
 
-        assert tx.price_per_client == Decimal("600.00")
+        # En la lógica nueva `tx.price_per_person = amount / len(persons)`
+        # length of persons is 2, so 600/2 = 300
+        assert tx.price_per_person == Decimal("300.00")
 
     def test_price_per_client_group(
         self, session, client_ana, client_luis,
         instructor_pedro, service_yoga
     ):
-        """price_per_client divide el amount entre los clientes."""
+        """price_per_person divide el amount entre las personas."""
         tx = Transaction(
-            id="tx_ppc2", offering_id=service_yoga.id,
+            id="tx_ppc2", service_id=service_yoga.id,
             amount=Decimal("240.00"), occurred_at=datetime.now(),
             status=TransactionStatus.PENDING,
         )
-        tx.clients   = [client_ana, client_luis]
-        tx.providers = [instructor_pedro]
+        tx.persons = [client_ana, client_luis, instructor_pedro]
         session.add(tx)
         session.flush()
 
-        assert tx.price_per_client == Decimal("120.00")
+        # 3 personas -> 240 / 3 = 80
+        assert tx.price_per_person == Decimal("80.00")

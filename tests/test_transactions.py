@@ -60,7 +60,7 @@ class TestTransactionManager:
     ):
         """Registra una transacción directa sin cita previa."""
         tx = tx_manager.register(
-            offering_id  = service_masaje.id,
+            service_id   = service_masaje.id,
             client_ids   = [client_ana.id],
             provider_ids = [therapist_marta.id],
             occurred_at  = datetime.now(),
@@ -78,7 +78,7 @@ class TestTransactionManager:
     ):
         """El monto se calcula como price × número de clientes."""
         tx = tx_manager.register(
-            offering_id  = service_yoga.id,
+            service_id   = service_yoga.id,
             client_ids   = [client_ana.id, client_luis.id],
             provider_ids = [instructor_pedro.id],
             occurred_at  = datetime.now(),
@@ -96,7 +96,7 @@ class TestTransactionManager:
     ):
         """Se puede especificar un monto custom (ej. descuento)."""
         tx = tx_manager.register(
-            offering_id  = service_masaje.id,
+            service_id   = service_masaje.id,
             client_ids   = [client_ana.id],
             provider_ids = [therapist_marta.id],
             occurred_at  = datetime.now(),
@@ -156,7 +156,7 @@ class TestTransactionManager:
     ):
         """profit = amount - cost_amount."""
         tx = tx_manager.register(
-            offering_id  = service_masaje.id,
+            service_id   = service_masaje.id,
             client_ids   = [client_ana.id],
             provider_ids = [therapist_marta.id],
             occurred_at  = datetime.now(),
@@ -174,7 +174,7 @@ class TestPaymentManager:
     ):
         """Un pago completo marca la transacción como PAID."""
         tx = tx_manager.register(
-            offering_id  = service_masaje.id,
+            service_id   = service_masaje.id,
             client_ids   = [client_ana.id],
             provider_ids = [therapist_marta.id],
             occurred_at  = datetime.now(),
@@ -200,7 +200,7 @@ class TestPaymentManager:
     ):
         """Un pago parcial marca la transacción como PARTIAL."""
         tx = tx_manager.register(
-            offering_id  = service_masaje.id,
+            service_id   = service_masaje.id,
             client_ids   = [client_ana.id],
             provider_ids = [therapist_marta.id],
             occurred_at  = datetime.now(),
@@ -227,13 +227,13 @@ class TestPaymentManager:
     ):
         """Un pago cubre dos transacciones simultáneamente."""
         tx1 = tx_manager.register(
-            offering_id  = service_masaje.id,
+            service_id   = service_masaje.id,
             client_ids   = [client_ana.id],
             provider_ids = [therapist_marta.id],
             occurred_at  = datetime.now(),
         )
         tx2 = tx_manager.register(
-            offering_id  = service_yoga.id,
+            service_id   = service_yoga.id,
             client_ids   = [client_luis.id],
             provider_ids = [instructor_pedro.id],
             occurred_at  = datetime.now(),
@@ -259,7 +259,7 @@ class TestPaymentManager:
     ):
         """No se puede pagar una transacción ya saldada."""
         tx = tx_manager.register(
-            offering_id  = service_masaje.id,
+            service_id   = service_masaje.id,
             client_ids   = [client_ana.id],
             provider_ids = [therapist_marta.id],
             occurred_at  = datetime.now(),
@@ -289,7 +289,7 @@ class TestPaymentManager:
     ):
         """Registra un reembolso y marca la transacción como REFUNDED."""
         tx = tx_manager.register(
-            offering_id  = service_masaje.id,
+            service_id   = service_masaje.id,
             client_ids   = [client_ana.id],
             provider_ids = [therapist_marta.id],
             occurred_at  = datetime.now(),

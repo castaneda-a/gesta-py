@@ -20,11 +20,9 @@ from gesta.core.entities import (
     PaymentMethod,
     Appointment,
     AppointmentStatus,
-    Offering,
+    Service,
+    Product,
     Person,
-    transaction_clients,
-    transaction_providers,
-    payment_transactions,
 )
 
 
@@ -112,14 +110,6 @@ class AppointmentSummary:
 class ReportManager:
     """
     Genera reportes y métricas del negocio a partir de los datos existentes.
-
-    Uso:
-        manager = ReportManager(session)
-        summary = manager.revenue_summary(
-            start = datetime(2025, 1, 1),
-            end   = datetime(2025, 3, 31),
-        )
-        print(summary.total_revenue)
     """
 
     def __init__(self, session: Session):
@@ -130,7 +120,6 @@ class ReportManager:
     # -----------------------------------------------------------------------
 
     def _date_range_for_month(self, year: int, month: int):
-        """Retorna (start, end) para un mes dado."""
         start = datetime(year, month, 1, 0, 0, 0)
         if month == 12:
             end = datetime(year + 1, 1, 1, 0, 0, 0) - timedelta(seconds=1)
@@ -146,9 +135,9 @@ class ReportManager:
         return (
             self.session.query(Transaction)
             .options(
-            selectinload(Transaction.offering),
-            selectinload(Transaction.clients),
-            selectinload(Transaction.providers),
+                selectinload(Transaction.service),
+                selectinload(Transaction.product),
+                selectinload(Transaction.persons),
             )
             .filter(
                 Transaction.occurred_at >= start,
@@ -165,12 +154,9 @@ class ReportManager:
         return (
             self.session.query(Payment)
             .options(
-            selectinload(Payment.transactions)
-                .selectinload(Transaction.offering),
-            selectinload(Payment.transactions)
-                .selectinload(Transaction.clients),
-            selectinload(Payment.transactions)
-                .selectinload(Transaction.providers),
+                selectinload(Payment.transactions).selectinload(Transaction.service),
+                selectinload(Payment.transactions).selectinload(Transaction.product),
+                selectinload(Payment.transactions).selectinload(Transaction.persons),
             )
             .filter(
                 Payment.is_refund == False,
@@ -218,7 +204,6 @@ class ReportManager:
         )
 
     def monthly_summary(self, year: int, month: int) -> RevenueSummary:
-        """Atajo para obtener el resumen de un mes específico."""
         start, end = self._date_range_for_month(year, month)
         return self.revenue_summary(start, end)
 
@@ -227,10 +212,6 @@ class ReportManager:
         start: datetime,
         end: datetime,
     ) -> dict[str, Decimal]:
-        """
-        Ingresos agrupados por día en un rango.
-        Retorna un dict { 'YYYY-MM-DD': monto }.
-        """
         payments = self._payments_in_range(start, end)
         by_day: dict[str, Decimal] = defaultdict(Decimal)
         for p in payments:
@@ -256,12 +237,19 @@ class ReportManager:
         names:    dict[str, str]     = {}
 
         for tx in transactions:
-            oid = tx.offering_id
+            oid = tx.service_id or tx.product_id
+            if not oid:
+                continue
+            
             counts[oid]   += 1
             revenues[oid] += tx.amount
             costs[oid]    += tx.cost_amount if tx.cost_amount is not None else Decimal("0")
-            if oid not in names and tx.offering:
-                names[oid] = tx.offering.name
+            
+            if oid not in names:
+                if tx.service:
+                    names[oid] = tx.service.name
+                elif tx.product:
+                    names[oid] = tx.product.name
 
         results = [
             OfferingStats(
@@ -294,11 +282,11 @@ class ReportManager:
         names:  dict[str, str]     = {}
 
         for tx in transactions:
-            # price_per_client ya está calculado correctamente en la entidad
-            per_client = tx.price_per_client
-            for client in tx.clients:
+            per_person = tx.price_per_person
+            clients = [p for p in tx.persons if p.is_recipient]
+            for client in clients:
                 counts[client.id] += 1
-                totals[client.id] += per_client
+                totals[client.id] += per_person
                 names[client.id]   = client.name
 
         results = [
@@ -327,7 +315,8 @@ class ReportManager:
         names:  dict[str, str]     = {}
 
         for tx in transactions:
-            for provider in tx.providers:
+            providers = [p for p in tx.persons if p.is_provider]
+            for provider in providers:
                 counts[provider.id] += 1
                 totals[provider.id] += tx.amount
                 names[provider.id]   = provider.name
@@ -354,10 +343,6 @@ class ReportManager:
         start: datetime,
         end: datetime,
     ) -> AppointmentSummary:
-        """
-        Resumen del estado de citas en un período.
-        Incluye tasa de completitud.
-        """
         appointments = (
             self.session.query(Appointment)
             .filter(
@@ -395,12 +380,12 @@ class ReportManager:
             {
                 "id":              tx.id,
                 "occurred_at":     tx.occurred_at.isoformat(),
-                "offering":        tx.offering.name if tx.offering else "",
-                "clients":         ", ".join(c.name for c in tx.clients),
-                "client_count":    tx.client_count,
-                "providers":       ", ".join(p.name for p in tx.providers),
+                "offering":        (tx.service.name if tx.service else "") or (tx.product.name if tx.product else ""),
+                "clients":         ", ".join(c.name for c in tx.persons if c.is_recipient),
+                "client_count":    len([c for c in tx.persons if c.is_recipient]),
+                "providers":       ", ".join(p.name for p in tx.persons if p.is_provider),
                 "amount":          str(tx.amount),
-                "price_per_client": str(tx.price_per_client),
+                "price_per_client": str(tx.price_per_person),
                 "cost_amount":     str(tx.cost_amount) if tx.cost_amount is not None else "",
                 "profit":          str(tx.profit) if tx.profit is not None else "",
                 "amount_paid":     str(tx.amount_paid),
@@ -415,10 +400,6 @@ class ReportManager:
         start: datetime,
         end: datetime,
     ) -> list[dict]:
-        """
-        Exporta los pagos de un período como lista de dicts.
-        Lista para convertir a CSV o JSON desde la capa superior.
-        """
         payments = self._payments_in_range(start, end)
 
         return [

@@ -44,8 +44,8 @@ class TestBook:
 
         assert appt.id           is not None
         assert appt.status       == AppointmentStatus.SCHEDULED
-        assert len(appt.clients)   == 1
-        assert len(appt.providers) == 1
+        assert len([p for p in appt.persons if p.is_recipient]) == 1
+        assert len([p for p in appt.persons if p.is_provider])  == 1
 
     def test_book_group(
         self, manager, session,
@@ -60,7 +60,7 @@ class TestBook:
         )
         session.flush()
 
-        assert len(appt.clients) == 2
+        assert len([p for p in appt.persons if p.is_recipient]) == 2
 
     def test_book_past_date_raises(
         self, manager, client_ana, therapist_marta, service_masaje, past_date
@@ -90,11 +90,10 @@ class TestBook:
         self, manager, session, client_ana, therapist_marta, future_date
     ):
         """No se puede agendar un servicio inactivo."""
-        from gesta.core.entities import Service, OfferingType
+        from gesta.core.entities import Service
         inactive = Service(
-            id="svc_inactive", type=OfferingType.SERVICE,
-            name="Inactivo", price=Decimal("100.00"),
-            duration_minutes="60", requires_provider=True,
+            id="svc_inactive", name="Inactivo", price=Decimal("100.00"),
+            duration_min=60, requires_space=True,
             is_active=False,
         )
         session.add(inactive)
@@ -111,7 +110,7 @@ class TestBook:
     def test_book_wrong_role_raises(
         self, manager, client_ana, therapist_marta, service_masaje, future_date
     ):
-        """No se puede usar un cliente como proveedor."""
+        """No se puede usar un cliente como proveedor si no tiene el rol is_provider."""
         with pytest.raises(InvalidRoleError):
             manager.book(
                 service_id   = service_masaje.id,
@@ -228,12 +227,11 @@ class TestCancel:
         session.flush()
 
         tx = Transaction(
-            id="tx_cancel_test", offering_id=service_masaje.id,
+            id="tx_cancel_test", service_id=service_masaje.id,
             appointment_id=appt.id, amount=Decimal("600.00"),
             occurred_at=datetime.now(), status=TransactionStatus.PENDING,
         )
-        tx.clients   = [client_ana]
-        tx.providers = [therapist_marta]
+        tx.persons = [client_ana, therapist_marta]
         session.add(tx)
         session.flush()
 
