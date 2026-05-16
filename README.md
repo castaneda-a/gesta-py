@@ -7,7 +7,7 @@ A Python library for hanling Gesta, a Customer Relationship Manager (CRM) — ap
 ## Tutorial
 For a detailed notebook tutorial, visit the following link:
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/castaneda-a/gesta/blob/main/gesta_tutorial.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/castaneda-a/gesta-py/blob/main/gesta_tutorial.ipynb)
 
 
 ---
